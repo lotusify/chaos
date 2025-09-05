@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>KHÔNG GIAN HỖN LOẠN CUỐI CÙNG ++</title>
+  <style>
+    /* Reset & cơ bản */
+    *{ box-sizing: border-box; cursor: none !important; }
+    html,body{ width:100%; height:100%; margin:0; padding:0; overflow:hidden; background:#000; font-family:"Arial Black", Gadget, sans-serif; }
+
+    /* Overlay yêu cầu click (bắt buộc để bật audio/autoplay) */
+    #click-overlay{
+      position:fixed; inset:0; background:#000; color:#fff; display:flex; align-items:center; justify-content:center;
+      text-align:center; z-index:99999999; font-size:8vw; text-shadow:0 0 30px fuchsia,0 0 50px red;
+      animation:overlayGlow .5s infinite alternate; font-family:"Impact", fantasy; user-select:none;
+    }
+    @keyframes overlayGlow{ from{opacity:1; transform:scale(1);} to{opacity:.7; transform:scale(1.05);} }
+
+    /* Con trỏ tuỳ chỉnh + vệt đuôi */
+    #custom-cursor{ position:fixed; width:50px; height:50px; border:2px solid #fff; border-radius:50%; pointer-events:none;
+      z-index:99999998; mix-blend-mode:difference; transform:translate(-50%,-50%); transition:transform .08s ease-out; }
+    .cursor-dot{ position:fixed; width:10px; height:10px; border-radius:50%; pointer-events:none; z-index:99999997;
+      background:radial-gradient(circle, #fff, transparent); mix-blend-mode:difference; opacity:.9; will-change:transform, opacity;
+      animation:dotFade .6s forwards; }
+    @keyframes dotFade{ to{ transform:translate3d(0,0,0) scale(0); opacity:0; } }
+
+    /* Rickroll float khung video */
+    .rickroll-float{
+      position:fixed; border:4px solid; overflow:hidden; z-index:1000; box-shadow:0 0 20px 5px; will-change:transform, filter;
+      animation:floaterRainbowBorder 1s infinite linear;
+    }
+    @keyframes floaterRainbowBorder{
+      0%{border-color:red; box-shadow:0 0 20px 5px red;}
+      33%{border-color:lime; box-shadow:0 0 20px 5px lime;}
+      66%{border-color:blue; box-shadow:0 0 20px 5px blue;}
+      100%{border-color:red; box-shadow:0 0 20px 5px red;}
+    }
+    .rickroll-float video{ width:100%; height:100%; object-fit:cover; display:block; }
+
+    /* Bảng nội dung (giữ của bạn) + tăng glitch & lắc */
+    table{
+      position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+      width:70vw; border:1px solid; z-index:1; color:#fff; font-size:2vw;
+      animation:tableGlitch .08s infinite linear;
+      filter:contrast(1.4) saturate(1.6) hue-rotate(0deg);
+    }
+    @keyframes tableGlitch{
+      0%{ transform:translate(-50%,-50%) skew(0deg); filter:hue-rotate(0deg); }
+      25%{ transform:translate(-49%, -52%) skew(1deg); filter:hue-rotate(90deg); }
+      50%{ transform:translate(-52%, -48%) skew(-1deg); filter:hue-rotate(180deg); }
+      75%{ transform:translate(-50%, -51%) skew(.5deg); filter:hue-rotate(270deg); }
+      100%{ transform:translate(-50%,-50%) skew(0deg); filter:hue-rotate(360deg); }
+    }
+    td,th{ padding:0; margin:0; border:1px solid; overflow:hidden;
+      text-shadow:2px 2px 0 #000,-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000; }
+
+    /* Chữ nhảy điên hơn */
+    .char{ display:inline-block; animation:charCrazy .4s infinite alternate; animation-delay:calc(var(--char-index) * 7ms); }
+    @keyframes charCrazy{
+      0%{ transform:scale(1) translateY(0) rotate(0deg); color:cyan; letter-spacing:0; }
+      100%{ transform:scale(1.7) translateY(-12px) rotate(20deg); color:magenta; letter-spacing:3px; }
+    }
+
+    /* Lớp FX: scanline + noise + flash + tilt toàn màn hình */
+    #fx-scan{ position:fixed; inset:0; z-index:9999; pointer-events:none;
+      background:repeating-linear-gradient(to bottom, rgba(255,255,255,.05), rgba(255,255,255,.05) 2px, transparent 2px, transparent 4px);
+      mix-blend-mode:overlay; animation:scanMove 1s linear infinite; }
+    @keyframes scanMove{ from{ transform:translateY(-10%);} to{ transform:translateY(10%);} }
+
+    #fx-noise{ position:fixed; inset:0; z-index:9998; pointer-events:none; opacity:.15; mix-blend-mode:hard-light;
+      background:
+        url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" /></filter><rect width="100%" height="100%" filter="url(%23n)"/></svg>');
+      animation:noiseShift .4s steps(1) infinite; }
+    @keyframes noiseShift{ to{ transform:translate3d(1px, -1px, 0);} }
+
+    #fx-flash{ position:fixed; inset:0; z-index:9997; pointer-events:none; opacity:0; background:#fff; }
+    .flash{ animation:flashBang .15s ease-in-out; }
+    @keyframes flashBang{ 0%{opacity:.9;} 100%{opacity:0;} }
+
+    #world{ position:fixed; inset:0; }
+    .shake{ animation:shakeWorld .25s infinite; }
+    @keyframes shakeWorld{
+      0%{ transform:translate(0,0) rotate(0deg); }
+      25%{ transform:translate(8px,-6px) rotate(.6deg); }
+      50%{ transform:translate(-7px,5px) rotate(-.6deg); }
+      75%{ transform:translate(5px,7px) rotate(.8deg); }
+      100%{ transform:translate(0,0) rotate(0deg); }
+    }
+
+    /* Áp hiệu ứng đảo màu/aberration tạm thời */
+    .invert{ filter:invert(1) hue-rotate(180deg) saturate(2); }
+    .aberration{ filter:drop-shadow(2px 0 red) drop-shadow(-2px 0 cyan); }
+
+  </style>
+</head>
+<body>
+  <div id="world">
+    <div id="click-overlay">CLICK ĐỂ HỦY HOẠI</div>
+    <div id="custom-cursor"></div>
+    <div id="fx-scan"></div>
+    <div id="fx-noise"></div>
+    <div id="fx-flash"></div>
+
+    <table>
+      <tr id="row1"></tr>
+      <tr id="row2"></tr>
+    </table>
+  </div>
+
+  <script>
+    // ====== CÀI ĐẶT ======
+    const NUM_FLOATERS = 60;  // NHIỀU HƠN — hỗn loạn hơn
+    const SWAP_CHANCE = 0.01; // xác suất đổi hướng bất ngờ mỗi frame
+    const WARP_CHANCE = 0.004;// xác suất “dịch chuyển tức thời”
+    const ZJITTER_MS = 400;   // chu kỳ đổi z-index
+    const SIZEJITTER_MS = 550;// chu kỳ đổi size
+    const FLASH_MS = 1500;    // chu kỳ flash trắng
+    const TILT_MS = 1800;     // chu kỳ lắc thế giới
+    // ======================
+
+    const floaters = [];
+    let chaosStarted = false;
+    let lastTime = 0;
+
+    // Util
+    const rand = (min, max) => Math.random() * (max - min) + min;
+    const randi = (min, max) => Math.floor(rand(min, max));
+    const sign = () => Math.random() < 0.5 ? -1 : 1;
+
+    // Nội dung “tào lao” bảng
+    function generateGibberish(len){
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()';
+      let s = '';
+      for(let i=0;i<len;i++) s += chars.charAt(Math.floor(Math.random()*chars.length));
+      return s;
+    }
+    function wrapChars(text){
+      return [...text].map((c,i)=>`<span class="char" style="--char-index:${i}">${c}</span>`).join('');
+    }
+    function updateGibberish(){
+      document.getElementById('row1').innerHTML = `<td>${wrapChars(generateGibberish(24))}</td><td>${wrapChars(generateGibberish(24))}</td>`;
+      document.getElementById('row2').innerHTML = `<td>${wrapChars(generateGibberish(24))}</td><td>${wrapChars(generateGibberish(24))}</td>`;
+    }
+    setInterval(updateGibberish, 420);
+
+    // Tạo floater
+    function createFloater(){
+      const el = document.createElement('div');
+      el.className = 'rickroll-float';
+
+      const size = rand(60, 260);
+      const vidW = size, vidH = size*(9/16);
+      el.style.width = vidW+'px';
+      el.style.height = vidH+'px';
+      el.style.borderRadius = `${rand(0, 50)}% ${rand(0, 50)}%`;
+
+      // trộn mode cho bệnh mắt
+      if(Math.random()<0.5) el.style.mixBlendMode = 'screen'; else el.style.mixBlendMode = 'difference';
+
+      const vid = document.createElement('video');
+      vid.src = 'secret.mp4';
+      vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsInline = true;
+      vid.playbackRate = rand(0.75, 1.75);
+      el.appendChild(vid);
+
+      document.body.appendChild(el);
+
+      el.style.zIndex = randi(1000, 999999);
+      el.style.filter = `blur(${rand(0, 2.5)}px) brightness(${rand(0.7, 1.6)}) contrast(${rand(0.9, 1.5)})`;
+
+      floaters.push({
+        el, vid,
+        w: vidW, h: vidH,
+        x: rand(0, innerWidth-vidW),
+        y: rand(0, innerHeight-vidH),
+        vx: sign()*rand(80, 750),
+        vy: sign()*rand(80, 750),
+        rot: rand(0,360),
+        rotSpeed: rand(-480, 480),
+        wobbleA: rand(1,6), wobbleB: rand(1,6), wobblePhase: rand(0, Math.PI*2)
+      });
+    }
+
+    for(let i=0;i<NUM_FLOATERS;i++) createFloater();
+
+    // Con trỏ + vệt đuôi
+    const cursor = document.getElementById('custom-cursor');
+    window.addEventListener('mousemove', e=>{
+      cursor.style.left = e.clientX+'px';
+      cursor.style.top  = e.clientY+'px';
+      // tạo vệt đuôi
+      const d = document.createElement('div');
+      d.className = 'cursor-dot';
+      d.style.left = (e.clientX-5) + 'px';
+      d.style.top  = (e.clientY-5) + 'px';
+      document.body.appendChild(d);
+      setTimeout(()=>d.remove(), 600);
+    });
+
+    // Flash trắng + tilt world + đảo màu/aberration ngẫu nhiên
+    const fxFlash = document.getElementById('fx-flash');
+    const world   = document.getElementById('world');
+
+    setInterval(()=>{ if(!chaosStarted) return; fxFlash.classList.remove('flash'); void fxFlash.offsetWidth; fxFlash.classList.add('flash'); }, FLASH_MS);
+    setInterval(()=>{
+      if(!chaosStarted) return;
+      world.classList.toggle('shake');
+      // đảo màu & aberration ngẫu nhiên thoáng chốc
+      if(Math.random()<.5){ world.classList.add('invert'); setTimeout(()=>world.classList.remove('invert'), 300); }
+      if(Math.random()<.5){ world.classList.add('aberration'); setTimeout(()=>world.classList.remove('aberration'), 300); }
+    }, TILT_MS);
+
+    // Z-index & size jitter
+    setInterval(()=>{
+      if(!chaosStarted) return;
+      for(const f of floaters){
+        if(Math.random()<.2) f.el.style.zIndex = randi(1000, 999999);
+      }
+    }, ZJITTER_MS);
+
+    setInterval(()=>{
+      if(!chaosStarted) return;
+      for(const f of floaters){
+        if(Math.random()<.25){
+          const nw = rand(60, 300);
+          f.w = nw; f.h = nw*(9/16);
+          f.el.style.width = f.w+'px';
+          f.el.style.height = f.h+'px';
+        }
+        // đổi playbackRate cho loạn
+        if(Math.random()<.3) f.vid.playbackRate = rand(.5, 2.2);
+      }
+    }, SIZEJITTER_MS);
+
+    // Vòng lặp animation
+    function animate(now){
+      if(!chaosStarted) return;
+      if(!lastTime) lastTime = now;
+      const dt = Math.min(0.05, (now-lastTime)/1000);
+      lastTime = now;
+
+      const W = innerWidth, H = innerHeight;
+
+      for(const f of floaters){
+        // random đổi hướng/speed
+        if(Math.random() < SWAP_CHANCE){
+          f.vx += sign()*rand(50, 400);
+          f.vy += sign()*rand(50, 400);
+          f.rotSpeed = rand(-600, 600);
+        }
+        // random dịch chuyển tức thời kiểu "teleport"
+        if(Math.random() < WARP_CHANCE){
+          f.x = rand(0, W-f.w); f.y = rand(0, H-f.h);
+        }
+
+        // cập nhật vị trí + xoay
+        f.x += f.vx * dt;
+        f.y += f.vy * dt;
+        f.rot += f.rotSpeed * dt;
+
+        // quỹ đạo lượn (wobble)
+        const wobbleX = Math.sin(now/70 + f.wobblePhase) * f.wobbleA;
+        const wobbleY = Math.cos(now/60 + f.wobblePhase) * f.wobbleB;
+
+        // wrap qua biên (đi xuyên và xuất hiện bên kia)
+        if(f.x > W) f.x = -f.w;
+        if(f.x < -f.w) f.x = W;
+        if(f.y > H) f.y = -f.h;
+        if(f.y < -f.h) f.y = H;
+
+        // áp transform
+        f.el.style.transform = `translate(${(f.x+wobbleX).toFixed(1)}px, ${(f.y+wobbleY).toFixed(1)}px) rotate(${f.rot.toFixed(1)}deg)`;
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    // Overlay click để bắt đầu hỗn loạn + mở tiếng nếu được
+    const overlay = document.getElementById('click-overlay');
+    overlay.addEventListener('click', ()=>{
+      if(chaosStarted) return;
+      chaosStarted = true;
+      overlay.style.display = 'none';
+
+      // cố bật tiếng (trình duyệt có thể vẫn chặn)
+      document.querySelectorAll('video').forEach(v=>{
+        v.muted = false;
+        v.play().catch(()=>{ /* ignore autoplay errors */ });
+      });
+
+      requestAnimationFrame(animate);
+    }, {once:true});
+
+    // Tăng hỗn loạn bằng phím:
+    //  - Space: nhân speed
+    //  - R: random teleport tất cả
+    //  - B: bùng nổ (flash + tăng tốc nhất thời)
+    window.addEventListener('keydown', (e)=>{
+      if(!chaosStarted) return;
+      if(e.code==='Space'){
+        for(const f of floaters){ f.vx*=1.8; f.vy*=1.8; }
+        setTimeout(()=>{ for(const f of floaters){ f.vx/=1.8; f.vy/=1.8; } }, 800);
+      } else if(e.key==='r' || e.key==='R'){
+        for(const f of floaters){ f.x = rand(0, innerWidth-f.w); f.y = rand(0, innerHeight-f.h); }
+      } else if(e.key==='b' || e.key==='B'){
+        fxFlash.classList.remove('flash'); void fxFlash.offsetWidth; fxFlash.classList.add('flash');
+        for(const f of floaters){ f.vx*=2.2; f.vy*=2.2; f.rotSpeed*=1.8; }
+        setTimeout(()=>{ for(const f of floaters){ f.vx/=2.2; f.vy/=2.2; f.rotSpeed/=1.8; } }, 600);
+      }
+    });
+
+    // Cập nhật vị trí khi resize
+    window.addEventListener('resize', ()=>{
+      for(const f of floaters){
+        if(f.x + f.w > innerWidth) f.x = Math.max(0, innerWidth - f.w);
+        if(f.y + f.h > innerHeight) f.y = Math.max(0, innerHeight - f.h);
+      }
+    });
+
+    // Khởi tạo bảng lần đầu
+    updateGibberish();
+  </script>
+</body>
+</html>
